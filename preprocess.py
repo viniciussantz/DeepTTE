@@ -5,16 +5,11 @@ import math
 import os
 import random
 import datetime
+from geopy.distance import geodesic
 
 # Haversine distance
 def geo_distance(lon1, lat1, lon2, lat2):
-    lon1, lat1, lon2, lat2 = map(math.radians, map(float, [lon1, lat1, lon2, lat2]))
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-    c = 2 * math.asin(math.sqrt(a))
-    r = 6371 # Earth radius in km
-    return c * r
+    return geodesic((float(lat1), float(lon1)), (float(lat2), float(lon2))).km
 
 def process_data(input_csv, output_dir, chunk_size=50000):
     if not os.path.exists(output_dir):
