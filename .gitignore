@@ -6,4 +6,7 @@
 
 #foloders
 logs/*
-
+/data
+/archive
+/result
+/saved_weights

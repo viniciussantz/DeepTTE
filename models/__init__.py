@@ -1,1 +1,1 @@
-import DeepTTE
+from .DeepTTE import *

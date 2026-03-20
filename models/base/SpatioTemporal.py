@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import GeoConv
+from . import GeoConv
 import numpy as np
 
 from torch.autograd import Variable
@@ -20,8 +20,8 @@ class Net(nn.Module):
         self.pooling_method = pooling_method
 
         self.geo_conv = GeoConv.Net(kernel_size = kernel_size, num_filter = num_filter)
-	#num_filter: output size of each GeoConv + 1:distance of local path + attr_size: output size of attr component
-	if rnn == 'lstm':
+        #num_filter: output size of each GeoConv + 1:distance of local path + attr_size: output size of attr component
+        if rnn == 'lstm':
             self.rnn = nn.LSTM(input_size = num_filter + 1 + attr_size, \
                                       hidden_size = 128, \
                                       num_layers = 2, \
@@ -63,10 +63,7 @@ class Net(nn.Module):
 
 	#hidden b*s*f atten b*f*1 alpha b*s*1 (s is length of sequence)
         alpha = torch.bmm(hiddens, attent)
-        alpha = torch.exp(-alpha)
-
-        # The padded hidden is 0 (in pytorch), so we do not need to calculate the mask
-        alpha = alpha / torch.sum(alpha, dim = 1, keepdim = True)
+        alpha = F.softmax(-alpha, dim = 1)
 
         hiddens = hiddens.permute(0, 2, 1)
         hiddens = torch.bmm(hiddens, alpha)
@@ -84,7 +81,7 @@ class Net(nn.Module):
         # concat the loc_conv and the attributes
         conv_locs = torch.cat((conv_locs, expand_attr_t), dim = 2)
 
-        lens = map(lambda x: x - self.kernel_size + 1, traj['lens'])
+        lens = list(map(lambda x: x - self.kernel_size + 1, traj['lens']))
 
         packed_inputs = nn.utils.rnn.pack_padded_sequence(conv_locs, lens, batch_first = True)
 

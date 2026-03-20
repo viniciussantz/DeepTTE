@@ -1,17 +1,24 @@
 {
-    "dist_gap_mean": 0.274716042312,
-    "dist_gap_std": 0.127051674693,
-    "time_gap_mean": 43.8756927994,
-    "time_gap_std": 51.4811932987,
-    "lngs_std": 0.04988770679679998,
-    "lngs_mean": 104.05810954320589,
-    "lats_mean": 30.652312982784895,
-    "dist_std": 3.9656010701306283,
-    "dist_mean": 9.578281194509781,
-    "lats_std": 0.04154695076189434,
-    "time_mean": 1555.75269436,
-    "time_std": 646.373021152,
-    "train_set": ["train_00", "train_01", "train_02", "train_03"],
-    "eval_set": ["train_04"],
-    "test_set": ["test"]
+    "dist_gap_mean": 0.2521157065010404,
+    "dist_gap_std": 0.4802578476820728,
+    "time_gap_mean": 15.0,
+    "time_gap_std": 1.0,
+    "lngs_std": 0.054739049801750504,
+    "lngs_mean": -8.616052526667593,
+    "lats_mean": 41.1587573435705,
+    "dist_std": 8.376659558131825,
+    "dist_mean": 5.941801570084063,
+    "lats_std": 0.08169187791290938,
+    "time_mean": 717.0292623829272,
+    "time_std": 672.6528316722696,
+    "train_set": [
+        "train_00"
+
+    ],
+    "eval_set": [
+        "train_31"
+    ],
+    "test_set": [
+        "train_32"
+    ]
 }
