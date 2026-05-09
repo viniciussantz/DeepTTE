@@ -50,7 +50,7 @@ def to_var(var):
             var[key] = to_var(var[key])
         return var
     if isinstance(var, list):
-        var = map(lambda x: to_var(x), var)
+        var = list(map(lambda x: to_var(x), var))
         return var
 
 def get_local_seq(full_seq, kernel_size, mean, std):

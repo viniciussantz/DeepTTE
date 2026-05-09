@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils
-import base
+from . import base
 import numpy as np
 
 from torch.autograd import Variable
@@ -96,7 +96,7 @@ class Net(nn.Module):
             if name.find('.bias') != -1:
                 param.data.fill_(0)
             elif name.find('.weight') != -1:
-                nn.init.xavier_uniform(param.data)
+                nn.init.xavier_uniform_(param.data)
 
     def build(self):
         # attribute component

@@ -54,12 +54,13 @@ def train(model, elogger, train_set, eval_set):
     if torch.cuda.is_available():
         model.cuda()
 
-    optimizer = optim.Adam(model.parameters(), lr = 1e-3)
+    optimizer = optim.Adam(model.parameters(), lr = 1e-4)
 
-    for epoch in xrange(args.epochs):
-        print 'Training on epoch {}'.format(epoch)
+    for epoch in range(args.epochs):
+        model.train()
+        print ("Training on epoch {}".format(epoch))
         for input_file in train_set:
-            print 'Train on file {}'.format(input_file)
+            print ("Train on file {}".format(input_file))
 
             # data loader, return two dictionaries, attr and traj
             data_iter = data_loader.get_loader(input_file, args.batch_size)
@@ -75,37 +76,56 @@ def train(model, elogger, train_set, eval_set):
                 # update the model
                 optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
 
-                running_loss += loss.data[0]
-                print '\r Progress {:.2f}%, average loss {}'.format((idx + 1) * 100.0 / len(data_iter), running_loss / (idx + 1.0)),
-            print
+                running_loss += loss.item()
+                print('\r Progress {:.2f}%, average loss {}'.format(
+                    (idx + 1) * 100.0 / len(data_iter),
+                    running_loss / (idx + 1.0)
+                ), end='')
             elogger.log('Training Epoch {}, File {}, Loss {}'.format(epoch, input_file, running_loss / (idx + 1.0)))
 
         # evaluate the model after each epoch
         evaluate(model, elogger, eval_set, save_result = False)
 
         # save the weight file after each epoch
-        weight_name = '{}_{}'.format(args.log_file, str(datetime.datetime.now()))
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        weight_name = f"weight_{timestamp}"
         elogger.log('Save weight file {}'.format(weight_name))
         torch.save(model.state_dict(), './saved_weights/' + weight_name)
 
-def write_result(fs, pred_dict, attr):
+def write_result(fs, pred_dict, attr, input_file, row_start):
     pred = pred_dict['pred'].data.cpu().numpy()
     label = pred_dict['label'].data.cpu().numpy()
 
-    for i in range(pred_dict['pred'].size()[0]):
-        fs.write('%.6f %.6f\n' % (label[i][0], pred[i][0]))
+    if row_start == 0:
+        fs.write('source_file\trow_id\tdriverID\tdateID\ttimeID\tlabel\tpred\n')
 
-        dateID = attr['dateID'].data[i]
-        timeID = attr['timeID'].data[i]
-        driverID = attr['driverID'].data[i]
+    for i in range(pred_dict['pred'].size()[0]):
+        dateID = attr['dateID'].data[i].item()
+        timeID = attr['timeID'].data[i].item()
+        driverID = attr['driverID'].data[i].item()
+
+        fs.write('%s\t%d\t%d\t%d\t%d\t%.6f\t%.6f\n' % (
+            input_file,
+            row_start + i,
+            driverID,
+            dateID,
+            timeID,
+            label[i][0],
+            pred[i][0]
+        ))
+
+    return row_start + pred_dict['pred'].size()[0]
 
 
 def evaluate(model, elogger, files, save_result = False):
     model.eval()
     if save_result:
         fs = open('%s' % args.result_file, 'w')
+
+    row_id = 0
 
     for input_file in files:
         running_loss = 0.0
@@ -116,23 +136,24 @@ def evaluate(model, elogger, files, save_result = False):
 
             pred_dict, loss = model.eval_on_batch(attr, traj, config)
 
-            if save_result: write_result(fs, pred_dict, attr)
+            if save_result:
+                row_id = write_result(fs, pred_dict, attr, input_file, row_id)
 
-            running_loss += loss.data[0]
+            running_loss += loss.item()
 
-        print 'Evaluate on file {}, loss {}'.format(input_file, running_loss / (idx + 1.0))
+        print('Evaluate on file {}, loss {}'.format(input_file, running_loss / (idx + 1.0)))
         elogger.log('Evaluate File {}, Loss {}'.format(input_file, running_loss / (idx + 1.0)))
 
     if save_result: fs.close()
 
 def get_kwargs(model_class):
-    model_args = inspect.getargspec(model_class.__init__).args
+    model_args = inspect.getfullargspec(model_class.__init__).args
     shell_args = args._get_kwargs()
 
     kwargs = dict(shell_args)
 
     for arg, val in shell_args:
-        if not arg in model_args:
+        if not arg in model_args or val is None:
             kwargs.pop(arg)
 
     return kwargs
