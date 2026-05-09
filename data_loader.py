@@ -11,9 +11,9 @@ import ujson as json
 class MySet(Dataset):
     def __init__(self, input_file):
         self.content = open('./data/' + input_file, 'r').readlines()
-        self.content = map(lambda x: json.loads(x), self.content)
-        self.lengths = map(lambda x: len(x['lngs']), self.content)
 
+        self.content = list(map(lambda x: json.loads(x), self.content))
+        self.lengths = list(map(lambda x: len(x['lngs']), self.content))
     def __getitem__(self, idx):
         return self.content[idx]
 
@@ -59,7 +59,7 @@ class BatchSampler:
         self.count = len(dataset)
         self.batch_size = batch_size
         self.lengths = dataset.lengths
-        self.indices = range(self.count)
+        self.indices = list(range(self.count))
 
     def __iter__(self):
         '''
