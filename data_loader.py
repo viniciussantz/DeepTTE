@@ -38,7 +38,7 @@ def collate_fn(data):
 
     for key in traj_attrs:
         # pad to the max length
-        seqs = np.asarray([item[key] for item in data])
+        seqs = [item[key] for item in data]
         mask = np.arange(lens.max()) < lens[:, None]
         padded = np.zeros(mask.shape, dtype = np.float32)
         padded[mask] = np.concatenate(seqs)
