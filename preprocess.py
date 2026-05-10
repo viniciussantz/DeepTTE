@@ -55,31 +55,58 @@ def resample_path(polyline, step_km=0.3):
     of GPS pings to guess the total travel time.
     """
     if len(polyline) < 2: return [], [], [], []
-    
-    new_lngs, new_lats = [polyline[0][0]], [polyline[0][1]]
-    new_dist_gap, new_time_gap = [0.0], [0.0]
-    
-    accum_dist = 0.0
-    current_dist_in_segment = 0.0
-    
+
+    # Build cumulative distance along the original path
+    cum_dist = [0.0]
     for i in range(1, len(polyline)):
         d = geo_distance(polyline[i-1][0], polyline[i-1][1], polyline[i][0], polyline[i][1])
-        while current_dist_in_segment + d >= step_km:
-            ratio = (step_km - current_dist_in_segment) / d if d > 0 else 0
-            res_lng = polyline[i-1][0] + ratio * (polyline[i][0] - polyline[i-1][0])
-            res_lat = polyline[i-1][1] + ratio * (polyline[i][1] - polyline[i-1][1])
-            res_time = ((i - 1) * 15.0) + (ratio * 15.0)
-            
-            new_lngs.append(res_lng)
-            new_lats.append(res_lat)
-            accum_dist += step_km
-            new_dist_gap.append(accum_dist)
-            new_time_gap.append(res_time)
-            
-            d -= (step_km - current_dist_in_segment)
-            current_dist_in_segment = 0.0
-            if d < 1e-7: break 
-        current_dist_in_segment += d
+        cum_dist.append(cum_dist[-1] + d)
+
+    total_dist = cum_dist[-1]
+    if total_dist <= 0.0:
+        return [], [], [], []
+
+    # Target distances at fixed spatial interval, always include the last point
+    targets = [0.0]
+    d = step_km
+    while d < total_dist:
+        targets.append(d)
+        d += step_km
+    if targets[-1] < total_dist:
+        targets.append(total_dist)
+
+    new_lngs, new_lats, new_dist_gap, new_time_gap = [], [], [], []
+    seg_idx = 1
+
+    for t in targets:
+        while seg_idx < len(cum_dist) and cum_dist[seg_idx] < t - 1e-9:
+            seg_idx += 1
+        if seg_idx >= len(cum_dist):
+            break
+
+        seg_start = cum_dist[seg_idx - 1]
+        seg_end = cum_dist[seg_idx]
+        seg_len = seg_end - seg_start
+
+        while seg_len < 1e-9 and seg_idx < len(cum_dist) - 1:
+            seg_idx += 1
+            seg_start = cum_dist[seg_idx - 1]
+            seg_end = cum_dist[seg_idx]
+            seg_len = seg_end - seg_start
+
+        if seg_len < 1e-9:
+            break
+
+        ratio = (t - seg_start) / seg_len
+        res_lng = polyline[seg_idx - 1][0] + ratio * (polyline[seg_idx][0] - polyline[seg_idx - 1][0])
+        res_lat = polyline[seg_idx - 1][1] + ratio * (polyline[seg_idx][1] - polyline[seg_idx - 1][1])
+        res_time = ((seg_idx - 1) * 15.0) + (ratio * 15.0)
+
+        new_lngs.append(res_lng)
+        new_lats.append(res_lat)
+        new_dist_gap.append(t)
+        new_time_gap.append(res_time)
+
     return new_lngs, new_lats, new_dist_gap, new_time_gap
 
 def process_data(input_csv, output_dir, chunk_size=50000):
@@ -152,9 +179,11 @@ def process_data(input_csv, output_dir, chunk_size=50000):
                 stats['lats'].extend(lats)
                 stats['dist'].append(record['dist'])
                 stats['time'].append(record['time'])
-                for j in range(2, len(dist_gap)):
-                    stats['dist_gap'].append(dist_gap[j] - dist_gap[j-2])
-                    stats['time_gap'].append(time_gap[j] - time_gap[j-2])
+                # Use cumulative gaps to match the sequences stored in records
+                if len(dist_gap) > 1:
+                    stats['dist_gap'].extend(dist_gap[1:])
+                if len(time_gap) > 1:
+                    stats['time_gap'].extend(time_gap[1:])
 
             if len(records[split]) >= chunk_size:
                 fname = "{}_{:03d}".format(split, chunk_idx[split])
